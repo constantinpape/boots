@@ -33,5 +33,11 @@ Argument list:
 - `watershed`: switch on/off watershed over-segmentation with 1/0 (default 1)
 - `multicut`: switch on/off multicut segmentation with 1/0 (default 1)
 
+The script will create the following datasets in the n5 file:
+
+- `affs_xy` / `affs_z`: The averaged in-plane affinities / between plane affinities (only nearest neighbor affinity channels).
+- `affs_xy_rechunked` / `affs_z_rechunked`: The affinities, rechunked for efficient downstream processing.
+- `watershed`: The watershed over-segmentation.
+- `multicut`: The multicut segmentation.
 
 ## Requirements
