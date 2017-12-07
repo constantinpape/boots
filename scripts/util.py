@@ -1,6 +1,9 @@
 import os
 from concurrent import futures
 
+import numpy as np
+from scipy.ndimage.filters import minimum_filter
+
 import z5py
 # we need nifty for the blocking
 import nifty
@@ -49,3 +52,36 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def make_min_filter_mask(mask_path, chunks, filter_shape, out_blocks=(56, 2048, 2048), mask_key='mask', n_threads=40):
+    f = z5py.File(mask_path, use_zarr_format=False)
+    ds_mask = f[mask_key]
+    halo = list(fshape // 2 for fshape in filter_shape)
+    blocking = nifty.tools.blocking(roiBegin=[0, 0, 0],
+                                   roiEnd=list(ds_mask.shape),
+                                   blockShape=list(out_blocks))
+
+    ds = f.create_dataset('min_filter_mask',
+                          shape=ds_mask.shape,
+                          chunks=chunks,
+                          dtype=ds_mask.dtype,
+                          compressor='gzip')
+
+    def mask_block(block_id):
+        print("Making min filter mask for block", block_id, '/', blocking.numberOfBlocks)
+        block = blocking.getBlockWithHalo(block_id, halo)
+        outer_roi = tuple(slice(beg, end)
+                          for beg, end in zip(block.outerBlock.begin, block.outerBlock.end))
+        inner_roi = tuple(slice(beg, end)
+                          for beg, end in zip(block.innerBlock.begin, block.innerBlock.end))
+        local_roi = tuple(slice(beg, end)
+                          for beg, end in zip(block.innerBlockLocal.begin, block.innerBlockLocal.end))
+        mask = ds_mask[outer_roi]
+        min_filter_mask = minimum_filter(mask, size=filter_shape)
+        ds[inner_roi] = min_filter_mask[local_roi]
+
+
+    with futures.ThreadPoolExecutor(max_workers=n_threads) as tp:
+        tasks = [tp.submit(mask_block, block_id) for block_id in range(blocking.numberOfBlocks)]
+        [t.result() for t in tasks]
