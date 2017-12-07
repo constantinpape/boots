@@ -16,22 +16,22 @@ raw data and `mask` containing a mask for parts of the data that shall be segmen
 Run complete pipelne using the `run.py` script in scripts.
 
 ```
-python run.py /path/to/n5_file
+python run.py /path/to/file.n5
 ```
 
 To run only specific parts, switch off parts of the pipeline
 with commandline arguments:
 
 ```
-python run.py /path/to/n5_file --inference 0 --rechunk 0 --watershed 0 --multicut 1
+python run.py /path/to/file.n5 --inference 0 --rechunk 0 --watershed 0 --multicut 1
 ```
 
 Argument list:
 
-- inference: switch on/off affinity map inference with 1/0 (default 1)
-- rechunk: switch on/off rechunking of affinity maps with 1/0 (default 1)
-- watershed: switch on/off watershed over-segmentation with 1/0 (default 1)
-- multicut: switch on/off multicut segmentation with 1/0 (default 1)
+- `inference`: switch on/off affinity map inference with 1/0 (default 1)
+- `rechunk`: switch on/off rechunking of affinity maps with 1/0 (default 1)
+- `watershed`: switch on/off watershed over-segmentation with 1/0 (default 1)
+- `multicut`: switch on/off multicut segmentation with 1/0 (default 1)
 
 
 ## Requirements
