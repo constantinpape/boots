@@ -1,12 +1,9 @@
 import sys
 import luigi
-import json
 import os
 
 from mc_luigi import PipelineParameter
 from mc_luigi import WsdtSegmentation
-
-import numpy as np
 
 
 # TODO read parameter from config file
@@ -31,7 +28,7 @@ def ws_masked(path):
                "--keyToMask", "min_filter_mask",
                "--savePath", save_path,
                "--saveKey", save_key],
-               main_task_cls=WsdtSegmentation)
+              main_task_cls=WsdtSegmentation)
 
 
 if __name__ == '__main__':

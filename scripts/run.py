@@ -1,7 +1,8 @@
 import argparse
 import os
 from subprocess import call
-from util import rechunk, str2bool, make_min_filter_mask
+from shutil import rmtree
+from util import rechunk, str2bool, make_min_filter_mask, relabel
 
 
 # TODO store configs for stuff in config file
@@ -13,6 +14,7 @@ def run(path,
         do_rechunk,
         do_min_filter,
         do_watershed,
+        do_relabel,
         do_multicut):
     assert os.path.exists(path), "Expect N5 dataset at %s" % path
 
@@ -59,6 +61,11 @@ def run(path,
         print("Starting watershed")
         call(['python', 'segmentation/watershed.py', path])
 
+    if do_relabel:
+        print("Starting relabeling")
+        relabel(path, 'w/watershed', path, 'watershed')
+        rmtree(os.path.join(path, 'w/watershed'))
+
     if do_multicut:
         print("Starting multicut")
         call(['python', 'segmentation/multicut.py', path])
@@ -72,9 +79,10 @@ def parse_args():
     parser.add_argument('--rechunk', type=str2bool, default='1')
     parser.add_argument('--min_filter_mask', type=str2bool, default='1')
     parser.add_argument('--watershed', type=str2bool, default='1')
+    parser.add_argument('--relabel', type=str2bool, default='0')
     parser.add_argument('--multicut', type=str2bool, default='1')
     args = parser.parse_args()
-    return args.path, args.inference, args.rechunk, args.min_filter_mask, args.watershed, args.multicut
+    return args.path, args.inference, args.rechunk, args.min_filter_mask, args.watershed, args.relabel, args.multicut
 
 
 if __name__ == '__main__':
