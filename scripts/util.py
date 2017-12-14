@@ -1,6 +1,7 @@
 import os
 from concurrent import futures
 import argparse
+import numpy as np
 
 # import numpy as np
 from scipy.ndimage.filters import minimum_filter
@@ -90,38 +91,44 @@ def make_min_filter_mask(mask_path, chunks, filter_shape, out_blocks=(56, 2048, 
 def relabel_segmentation(seg_path,
                          seg_key,
                          seg_path_out,
-                         seg_key_out):
+                         seg_key_out,
+                         n_threads):
+    import z5py
     ds = z5py.File(seg_path, use_zarr_format=False)[seg_key]
     shape = ds.shape
 
-    if not os.path.exists(seg_path_out):
-        ds_out = z5py.File(seg_path_out, use_zarr_format=False).create_dataset(seg_key_out,
-                                                                               dtype='uint64',
-                                                                               shape=shape,
-                                                                               chunks=ds.chunks,
-                                                                               compressor='gzip')
-    else:
-        ds_out = z5py.File(seg_path_out, use_zarr_format=False)['data']
+    ds_out = z5py.File(seg_path_out, use_zarr_format=False).create_dataset(seg_key_out,
+                                                                           dtype='uint64',
+                                                                           shape=shape,
+                                                                           chunks=ds.chunks,
+                                                                           compressor='gzip')
 
-    zz = slice(0, 1)
-    seg = ds[zz]
-    seg_mask = seg != 0
-    seg_masked = seg[seg_mask]
-    prev_ma = int(seg_masked.max())
-    ds_out[zz] = seg
-
-    for z in range(1, shape[0]):
-        print(z, "/", shape[0])
-
+    def minmax_z(z):
+        print("Finding min / max for slice", z)
         zz = slice(z, z + 1)
         seg = ds[zz]
-        seg_mask = seg != 0
-        seg_masked = seg[seg_mask]
-        mi = int(seg_masked.min())
+        masked = seg[seg != 0]
+        mi, ma = int(masked.min()), int(masked.max())
+        return mi, ma
 
-        if prev_ma + 1 != mi:
-            diff = mi - (prev_ma + 1)
-            seg[seg_mask] -= int(diff)
+    with futures.ThreadPoolExecutor(max_workers=n_threads) as tp:
+        tasks = [tp.submit(minmax_z, z) for z in range(ds.shape[0])]
+        minmax = np.array([t.result() for t in tasks])
+
+    mins = minmax[:, 0]
+    maxs = minmax[:, 1]
+
+    diffs = mins[1:] - (maxs[:-1] + 1)
+    diffs = np.cumsum(diffs).astype('uint64')
+    diffs = np.concatenate([np.zeros((1,), dtype='uint64'), diffs])
+
+    def relabel_z(z):
+        # print("Relabeling for slice", z)
+        zz = slice(z, z + 1)
+        seg = ds[zz]
+        seg[seg != 0] -= diffs[z]
         ds_out[zz] = seg
-        seg_masked = seg[seg_mask]
-        prev_ma = int(seg_masked.max())
+
+    with futures.ThreadPoolExecutor(max_workers=n_threads) as tp:
+        tasks = [tp.submit(relabel_z, z) for z in range(ds.shape[0])]
+        [t.result() for t in tasks]
