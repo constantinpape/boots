@@ -1,8 +1,10 @@
 import argparse
 import os
 from subprocess import call
+from hashlib import md5
 from shutil import rmtree
-from util import rechunk, str2bool, make_min_filter_mask, relabel
+
+from util import rechunk, str2bool, make_min_filter_mask, relabel_segmentation
 
 
 # TODO store configs for stuff in config file
@@ -63,12 +65,18 @@ def run(path,
 
     if do_relabel:
         print("Starting relabeling")
-        relabel(path, 'w/watershed', path, 'watershed')
-        rmtree(os.path.join(path, 'w/watershed'))
+        relabel_segmentation(path, 'watershed/w', path, 'watershed_rel', n_threads)
+        rmtree(os.path.join(path, 'watershed'))
+        os.rename(os.path.join(path, 'watershed_rel'),
+                  os.path.join(path, 'watershed'))
 
     if do_multicut:
         print("Starting multicut")
         call(['python', 'segmentation/multicut.py', path])
+        cache_folder = os.path.join('/data/papec/cache/',
+                                    'cache_' + str(md5(path.encode()).hexdigest()))
+        delete cache
+        rmtree(cache_folder)
 
 
 # argparser

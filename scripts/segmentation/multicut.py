@@ -1,13 +1,17 @@
 import sys
+import os
 import luigi
 from mc_luigi import BlockwiseMulticutSegmentation, PipelineParameter
+from hashlib import md5
 
 
 def multicut(path):
     ppl_params = PipelineParameter()
     # TODO change to new input file syntax
+    cache_folder = os.path.join('/data/papec/cache/',
+                                'cache_' + str(md5(path.encode()).hexdigest()))
     inp_file = {'data': [path, path, path],
-                'cache': '/data/papec/cache/',
+                'cache': cache_folder,
                 'seg': path,
                 'keys': {'data': ['gray', 'affs_xy_rechunked', 'affs_z_rechunked'],
                          'seg': 'watershed'}}
@@ -18,8 +22,8 @@ def multicut(path):
     ppl_params.features = ['affinitiesXY', 'affinitiesZ']
     ppl_params.zAffinityDirection = 2
     ppl_params.separateEdgeClassification = True
-    ppl_params.nFeatureChunks = 2
-    ppl_params.ignoreLabel = 0
+    ppl_params.nFeatureChunks = 120
+    ppl_params.ignoreSegLabel = 0
 
     ppl_params.useSimpleFeatures = True
 
@@ -33,13 +37,15 @@ def multicut(path):
     n_levels = 2
 
     # TODO correct path
-    rf  = ''
+    rf  = '/groups/saalfeld/saalfeldlab/sampleE/cremi_ABC_randomforests'
 
     luigi.run(['--local-scheduler',
                '--pathToSeg', path,
                '--keyToSeg', 'watershed',
                '--pathToClassifier', rf,
-               '--numberOfLevels', str(n_levels)],
+               '--numberOfLevels', str(n_levels),
+               '--savePath', os.path.join(path, 'segmentations'),
+               '--saveKey', 'multicut'],
               main_task_cls=BlockwiseMulticutSegmentation)
 
 
