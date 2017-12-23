@@ -2,7 +2,7 @@ import argparse
 import os
 from subprocess import call
 from hashlib import md5
-from shutil import rmtree, move
+from shutil import rmtree
 
 from util import rechunk, str2bool, make_min_filter_mask, relabel_segmentation
 
@@ -53,6 +53,9 @@ def run(path,
         # our shape for the min filter is the contect of the neural network
         # which is (in_shape - out_shape) // 2
         filter_shape = tuple((ins - outs) // 2 for ins, outs in zip(net_in_shape, net_out_shape))
+        # increase filter to 2 * context_size + 1
+        # (necessary for all predictions to be valid)
+        filter_shape = tuple(2 * fshape + 1 for fshape in filter_shape)
         print("With filter shape", filter_shape)
         make_min_filter_mask(path,
                              filter_shape=filter_shape,
@@ -78,10 +81,19 @@ def run(path,
               "1" if use_simple_feats else "0"])
         cache_folder = os.path.join('/data/papec/cache/',
                                     'cache_' + str(md5(path.encode()).hexdigest()))
-        if not use_simple_feats:
-            move(os.path.join(path, 'segs', 'multicut_more_features'),
-                 os.path.join(path, 'segmentations'))
-            rmtree(os.path.join(path, 'segs'))
+        # copy segmentation to target folder and rechunk
+        seg_path = None
+        for f in os.listdir(cache_folder):
+            if f.startswith("BlockwiseMulticutSegmentation"):
+                seg_path = os.path.join(cache_folder, f)
+                break
+        assert seg_path is not None
+        rechunk(seg_path,
+                os.path.join(path, 'segmentation'),
+                'multicut' if use_simple_feats else 'multicut_more_features',
+                (26, 256, 256),
+                (26, 1024, 1024),
+                n_threads)
         # delete cache
         rmtree(cache_folder)
 

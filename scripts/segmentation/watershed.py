@@ -15,11 +15,9 @@ def ws_masked(path):
     ppl_params.wsdtSigSeeds = 2.6
     ppl_params.nThreads = 40
 
-    # FIXME this is some dirty hack to trick the luigi task checker
-    # to schedule our task, although the n5-path is existing
     # TODO in the long run, we need the scheduler to check for path and keys
-    save_path = os.path.join(path, 'watershed')
-    save_key = 'w'
+    save_path = os.path.join(path, 'segmentation')
+    save_key = 'watershed'
 
     luigi.run(["--local-scheduler",
                "--pathToProbabilities", path,

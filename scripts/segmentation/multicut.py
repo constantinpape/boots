@@ -14,7 +14,7 @@ def multicut(path, use_simple_feats=True):
                 'cache': cache_folder,
                 'seg': path,
                 'keys': {'data': ['gray', 'affs_xy_rechunked', 'affs_z_rechunked'],
-                         'seg': 'watershed'}}
+                         'seg': 'segmentation/watershed'}}
     ppl_params.read_input_file(inp_file)
 
     # TODO expose some of this as parameters
@@ -52,9 +52,7 @@ def multicut(path, use_simple_feats=True):
                '--pathToSeg', path,
                '--keyToSeg', 'watershed',
                '--pathToClassifier', rf,
-               '--numberOfLevels', str(n_levels),
-               '--savePath', save_path,
-               '--saveKey', save_key],
+               '--numberOfLevels', str(n_levels)],
               main_task_cls=BlockwiseMulticutSegmentation)
 
 
