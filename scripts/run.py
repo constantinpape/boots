@@ -2,7 +2,7 @@ import argparse
 import os
 from subprocess import call
 from hashlib import md5
-from shutil import rmtree
+from shutil import rmtree, move
 
 from util import rechunk, str2bool, make_min_filter_mask, relabel_segmentation
 
@@ -26,6 +26,8 @@ def run(path,
     out_blocks = (56, 2048, 2048)
     net_in_shape = (84, 268, 268)
     net_out_shape = (56, 56, 56)
+    # simple features
+    use_simple_feats = False
 
     if do_inference:
         print("Starting inference")
@@ -72,10 +74,15 @@ def run(path,
 
     if do_multicut:
         print("Starting multicut")
-        call(['python', 'segmentation/multicut.py', path])
+        call(['python', 'segmentation/multicut.py', path,
+              "1" if use_simple_feats else "0"])
         cache_folder = os.path.join('/data/papec/cache/',
                                     'cache_' + str(md5(path.encode()).hexdigest()))
-        delete cache
+        if not use_simple_feats:
+            move(os.path.join(path, 'segs', 'multicut_more_features'),
+                 os.path.join(path, 'segmentations'))
+            rmtree(os.path.join(path, 'segs'))
+        # delete cache
         rmtree(cache_folder)
 
 

@@ -5,7 +5,7 @@ from mc_luigi import BlockwiseMulticutSegmentation, PipelineParameter
 from hashlib import md5
 
 
-def multicut(path):
+def multicut(path, use_simple_feats=True):
     ppl_params = PipelineParameter()
     # TODO change to new input file syntax
     cache_folder = os.path.join('/data/papec/cache/',
@@ -25,7 +25,7 @@ def multicut(path):
     ppl_params.nFeatureChunks = 120
     ppl_params.ignoreSegLabel = 0
 
-    ppl_params.useSimpleFeatures = True
+    ppl_params.useSimpleFeatures = use_simple_feats
 
     ppl_params.multicutWeightingScheme = 'xy'
     ppl_params.multicutWeight = 15
@@ -36,19 +36,29 @@ def multicut(path):
 
     n_levels = 2
 
-    # TODO correct path
-    rf  = '/groups/saalfeld/saalfeldlab/sampleE/cremi_ABC_randomforests'
+    rf  = '/groups/saalfeld/saalfeldlab/sampleE/cremi_ABC_randomforests' if use_simple_feats \
+        else '/groups/saalfeld/saalfeldlab/sampleE/cremi_ABC_randomforests_more_features'
+
+    # dirty hack because gpu 2 does not find /groups/saalfeld/saalfeldlabe
+    if not os.path.exists(rf):
+        rf = '/groups/saalfeld/home/papec/cremi_ABC_randomforests_more_features'
+
+    save_path = os.path.join(path,
+                             'segmentations' if use_simple_feats else 'segs')
+    print("saving multicut segmentation to", save_path)
+    save_key = 'multicut' if use_simple_feats else 'multicut_more_features'
 
     luigi.run(['--local-scheduler',
                '--pathToSeg', path,
                '--keyToSeg', 'watershed',
                '--pathToClassifier', rf,
                '--numberOfLevels', str(n_levels),
-               '--savePath', os.path.join(path, 'segmentations'),
-               '--saveKey', 'multicut'],
+               '--savePath', save_path,
+               '--saveKey', save_key],
               main_task_cls=BlockwiseMulticutSegmentation)
 
 
 if __name__ == '__main__':
     path = sys.argv[1]
-    multicut(path)
+    use_simple_feats = bool(int(sys.argv[2]))
+    multicut(path, use_simple_feats)
